@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html class="nojs" lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Hiking Log – Keenan Ganz</title>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="http://s-kganz.github.io/hiking/index.xml">
+<meta name="description" content="">
+<meta name="created" content="0001-01-01T00:00:00+0000">
+<meta name="modified" content="0001-01-01T00:00:00+0000">
+
+
+<meta property="og:site_name" content="Keenan Ganz">
+<meta property="og:title" content="Hiking Log">
+<meta property="og:url" content="http://s-kganz.github.io/hiking/">
+<meta property="og:type" content="website">
+
+<meta name="generator" content="Hugo 0.74.3" />
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="theme-color" content="#ffffff">
+
+
+<link rel="canonical" href="http://s-kganz.github.io/hiking/">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="stylesheet" href="/css/styles.07de9722ae74190da91740ecb1e12bbfa31de324e29ab4972bdcc4131519528c.css">
+<link rel="stylesheet" href="/css/print.27fc184f8670f41a2690985390779e7b20335a8fadff8fa015cf9417ffe50c36.css" media="print">
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "url" : "http://s-kganz.github.io/hiking/",
+    "name": "Hiking Log",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "http://s-kganz.github.io/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Keenan Ganz",
+      "url": "http://s-kganz.github.io/"
+    }
+  }
+</script>
+
+<script defer src="/js/lib/umbrella.min.b426107371d121c9a56a27aac9e9058ff592a021e2f4c3c94827fe70920d3cbb.js"></script>
+<script defer src="/js/script.min.8e4d91ebe0d9226621e408b7205bd7b009e4935608e4b29c4275116490cc836d.js"></script>
+
+
+</head>
+
+<body class="list-page">
+<div class="page layout__page layout__sidebar-second">
+<header class="header layout__header">
+
+<h1 class="header__site-name">
+<a href="/" title="Home" class="header__site-link" rel="home"><span>Keenan Ganz</span></a>
+</h1>
+<div class="region header__region">
+</div>
+</header>
+
+<nav class="main-menu layout__navigation">
+<h2 class="visually-hidden">Main menu</h2>
+<ul class="navbar">
+<li><a href="/">Home</a></li>
+<li><a href="/science/">Science</a></li>
+<li><a href="/code/">Code</a></li>
+<li><a href="/hiking/" class="active" aria-current="page">Hiking Log</a></li>
+</ul>
+</nav>
+
+
+<main class="main layout__main">
+<h1 class="title">Hiking Log</h1>
+
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+   integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+   crossorigin=""/>
+</head>
+
+
+<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+crossorigin=""></script>
+
+<div id='map' style='height: 500px; width: 150%;'></div>
+
+<script>
+    var mymap = L.map('map').setView([47.7, -122], 7)
+
+L.tileLayer(
+    'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', 
+    {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        maxZoom: 18,
+        id: 'mapbox/streets-v11',
+        tileSize: 512,
+        zoomOffset: -1,
+        accessToken: 'pk.eyJ1IjoiZ2FuemsiLCJhIjoiY2tkeGMzZGN2MTRhZDJ4bm95eGg0b3hkaSJ9.TaKkhVLZ6h8pegTnGTRCRA'
+}).addTo(mymap);
+
+var marker = L.marker([47.7647834, -121.8781826]).addTo(mymap)
+marker.bindPopup("Cherry Creek Falls");
+
+var marker = L.marker([47.5064426, -121.7427364]).addTo(mymap)
+marker.bindPopup("<a href='mtsi'> Mt. Si </a>");
+
+var marker = L.marker([47.784777, -121.572055]).addTo(mymap)
+marker.bindPopup('<a href="lkserene"> Lake Serene </a>');
+
+var marker = L.marker([47.4255279, -121.7027464]).addTo(mymap);
+marker.bindPopup('<a href="mtwashington"> Mt. Washington </a>');
+
+var marker = L.marker([47.8988121, -121.6725011]).addTo(mymap)
+marker.bindPopup("Wallace Falls");
+
+var marker = L.marker([47.846295, -122.049465]).addTo(mymap)
+marker.bindPopup("Lord Hill");
+
+var marker = L.marker([47.78856, -122.079905]).addTo(mymap)
+marker.bindPopup("Paradise Valley");
+
+var marker = L.marker([48.077328, -121.932492]).addTo(mymap)
+marker.bindPopup("Lime Kiln Trail");
+
+var marker = L.marker([48.2509, -121.8172]).addTo(mymap)
+marker.bindPopup("Boulder River Trail");
+
+var marker = L.marker([47.666931, -121.224269]).addTo(mymap)
+marker.bindPopup("Mt. Sawyer");
+
+var marker = L.marker([47.587059, -121.384671]).addTo(mymap)
+marker.bindPopup("Dorothy Lake");
+
+var marker = L.marker([37.269351, -112.947903]).addTo(mymap)
+marker.bindPopup("Angel's Landing");
+
+var marker = L.marker([47.151567, -119.922473]).addTo(mymap)
+marker.bindPopup("Ancient Lakes");
+
+var marker = L.marker([47.435954, -121.778512]).addTo(mymap)
+marker.bindPopup("Rattlesnake Ledge");
+
+</script>
+
+<article class="section-hiking list-view">
+<header>
+<h2 class="title "><a href="/hiking/lkserene/">Lake Serene</a></h2>
+
+</header>
+<div class="content">
+6/2/2019
+Lake Serene is the Mt. Si of the Highway 2 corridor. That is to say - strenuous yet beautiful hiking and lots of people. My first experience with the trail was a line of some 20+ signs saying &ldquo;NO PARKING&rdquo; on the side of the road. After parking in what was probably the last spot in the lot (at like 7 am!!) and starting up the trail, I was soon walking behind a group playing music out of a speaker.
+</div>
+</article>
+
+<article class="section-hiking list-view">
+<header>
+<h2 class="title "><a href="/hiking/mtsi/">Mt. Si</a></h2>
+
+</header>
+<div class="content">
+12/31/2019 (most recently)
+One cannot recreate in Washington without eventually going to Mt. Si. The trail is well-maintained, connects to other long-distance trails, and you can literally take a bus to it from Seattle. I haven&rsquo;t personally taken that route, but dang would it be cool to get to a hike via Orca card.
+In fact, taking the bus is probably the optimal way to get to Mt. Si. The hike&rsquo;s extreme popularity means that the parking lot, already quite large, fills up in the morning during the peak season.
+</div>
+</article>
+
+<article class="section-hiking list-view">
+<header>
+<h2 class="title "><a href="/hiking/mtwashington/">Mt. Washington</a></h2>
+
+</header>
+<div class="content">
+7/5/2020
+Fun story about this one. With the pandemic still in full swing, masks are an essential part of any form of outdoor recreation. So, you can imagine how silly I felt when after 10 minutes of driving to Mt. Washington, I realized that I had left my mask at home. Or, so I thought. After making the drive back and opening my trunk, there the mask was.
+I felt a little sullen over wasting a half hour in transit.
+</div>
+</article>
+
+
+</main>
+
+
+<footer class="footer layout__footer">
+<p>Subscribe to section hiking: <a rel="alternate" type="application/rss&#43;xml" href="http://s-kganz.github.io/hiking/index.xml">RSS</a></p>
+<p><span>© Keenan Ganz</span></p>
+
+
+</footer>
+
+</div>
+</body>
+</html>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>

@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Maps, Code, and More on Keenan Ganz</title>
+    <link>http://s-kganz.github.io/</link>
+    <description>Recent content in Maps, Code, and More on Keenan Ganz</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 22 Aug 2019 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://s-kganz.github.io/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Wetlands in Snohomish County</title>
+      <link>http://s-kganz.github.io/science/wetlands/</link>
+      <pubDate>Thu, 22 Aug 2019 00:00:00 +0000</pubDate>
+      <guid>http://s-kganz.github.io/science/wetlands/</guid>
+      <description>&lt;p&gt;Wetlands are quite literally just wet land. But, simply having increased soil moisture or standing water is enough to make wetlands one of the most valuable parts of the ecosystem. They serve as amphibian habitat, salmon habitat, water filters, flood barriers, etc. It should come as no surprise that wetlands are an important character in Washington&amp;rsquo;s land use regulation. Any time new construction takes place, the entire project (&lt;em&gt;should be&lt;/em&gt;) inspected by hand for signs of wetlands.&lt;/p&gt;
+&lt;p&gt;Collecting such data is &lt;em&gt;tedious&lt;/em&gt;, and for good reason. &lt;a href=&#34;https://www.fws.gov/wetlands/documents/Wetlands-and-Deepwater-Habitats-Classification-chart.pdf&#34;&gt;Wetlands take on many forms&lt;/a&gt; that are only obvious at certain times of the year. Identifying wetlands considers soil color, texture, redox features, vegetation types across multiple strata, cracked surfaces, and other features that all point towards excess moisture. The data form is &lt;a href=&#34;https://www.spk.usace.army.mil/Portals/12/documents/regulatory/pdf/wmvc_df2.pdf&#34;&gt;remarkably detailed&lt;/a&gt; and one site may require as many as 15 such data forms. &lt;em&gt;And then&lt;/em&gt;, once wetlands are identified, they are given a grade from 1-4 that defines regulatory implications. Ideally, highly-rated wetlands would be left untouched. But, developers can pay a fee or restore another section of their site to account for unavoidable impacts.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;https://upload.wikimedia.org/wikipedia/commons/6/67/Skunk_Cabbage_Leaves.jpg&#34; alt=&#34;Skunk cabbage&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Skunk cabbage is a fun wetland plant native to Washington state. Image source: Wikipedia&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The amount of work involved in wetland delineation means that it is unlikely the process will ever be completely automated. Delineation shouldn&amp;rsquo;t be automated anyway; it&amp;rsquo;s important that we make sure the land we develop doesn&amp;rsquo;t harbor a rare piece of increasingly fragmented habitat. However, that doesn&amp;rsquo;t mean that the process can&amp;rsquo;t be streamlined. Wetland identification has been the goal of many researchers involved in landscape classification from remotely-sensed data.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;To be clear, the goal of such work isn&amp;rsquo;t to rate wetlands directly from remote data. Instead, we can point trained field biologists in the right direction. Reducing a 10-square mile area to just a few acres can save a lot of time and energy. LiDAR-derived elevation models are one way we can approach this problem. If you aren&amp;rsquo;t familiar with LiDAR, it has a pretty cool Wikipedia page. The short of it is that by shooting a microwave laser from a plane down to the Earth&amp;rsquo;s surface many thousand times per second, we can generate extremely precise elevation models that include information on vegetation and surface type.&lt;/p&gt;
+&lt;p&gt;Fundamentally, generating a wetland model is like making a model of the land surface and pouring water over it. Consider this study area near Mill Creek, Washington, representing one drainage catchment around Thomas Lake.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/study_area.png&#34; alt=&#34;Study Area&#34; width=&#34;612&#34; height=&#34;622&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Light blue polygons represent known wetlands in the area. This is a good site for a small case study because of the variety of drainage features present (large central wetland complex, suburban culverts, roadways, etc). Snohomish County collected aerial LiDAR at 3-foot resolution for various applications in surface water management. Filtering only to last-return ground points, we can interpolate an initial elevation model of the study area. In the below figure, the plot at upper right traces flow over a 2-land road along a flowline from the &lt;a href=&#34;https://www.usgs.gov/core-science-systems/ngp/national-hydrography&#34;&gt;National Hydrography Dataset&lt;/a&gt;. The problem is that even though there is an underground pipe directing flow underneath the road, this is not well-represented in the LiDAR data.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/culvert_problem.png&#34; alt=&#34;Culvert Problem&#34; width=&#34;666&#34; height=&#34;464&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Enter ANUDEM, a product from Australian National University that recalculates gridded elevation models from drainage features. Culverts, retention ponds, and other features can be passed to ANUDEM, which refines LiDAR to yield a hydrologically correct elevation model. After tuning parameters, we end up with a well-smoothed model.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/dem_full.png&#34; alt=&#34;Full DEM in 3D view&#34; width=&#34;883&#34; height=&#34;576&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Now that we have an elevation model, how do we pour water over it? One measurement of the &amp;ldquo;wetness&amp;rdquo; of a particular location is the topographic wetness index (TWI), given by:&lt;/p&gt;
+&lt;p&gt;$$ w = \ln \frac{\alpha}{\tan \beta} $$&lt;/p&gt;
+&lt;p&gt;Where $$\alpha$$ represents uplsope catchment area (the area contributing flow to this point) and $$\beta$$ represents local slope. That&amp;rsquo;s a pretty good start, but the resulting raster very strongly emphasizes flowlines.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/twi.png&#34; alt=&#34;Full DEM in 3D view&#34; width=&#34;612&#34; height=&#34;622&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;An alternative comes packaged in the GIS utility SAGA (System for Automated Geoscientific Analysis) as the Saga Wetness Index. This index utilizes a modified catchment area calculation and elevation above flow channels.&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/swi.png&#34; alt=&#34;Full DEM in 3D view&#34; width=&#34;612&#34; height=&#34;623&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Much better. However, some small pleateaus remain as artifacts from DEM interpolation. Randomly sampling points inside and outside wetland polygons can give us an idea of how to map SWI values to the probability of an area being considered wet. Points were sampled and binned to generate a histogram. For each bin, the proportion of points within wetlands was calculated. A sigmoidal curve was fit to these points as shown below:&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/swi_fit.png&#34; alt=&#34;Full DEM in 3D view&#34; width=&#34;798&#34; height=&#34;599&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Applying this map to the SWI raster results in the final wetness likelihood raster:&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/wetlands/swi_prob.png&#34; alt=&#34;Full DEM in 3D view&#34; width=&#34;538&#34; height=&#34;547&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Data Source: Snohomish County&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The central wetland complex is delineated well. However, artifacts from interpolation remain and wetness may be overestimated in the southeastern region of the study area. It is important to note that the study area was not exhaustively searched for wetlands.&lt;/p&gt;
+&lt;p&gt;Nevertheless, this works demonstrates the viability of alternative wetness indices for wetland delineation. Thank you to Snohomish County Public Works for supporting me on this project!&lt;/p&gt;
+&lt;p&gt;Footnotes:&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;A few studies include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://pdfs.semanticscholar.org/5759/bcab82819f9d63b99bb04b2a6d9dcf675ab4.pdf&#34;&gt;Tagestad et. al. 2009&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.tandfonline.com/doi/abs/10.5589/m13-038&#34;&gt;Millard and Richardson 2013&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://pubs.cif-ifc.org/doi/pdf/10.5558/tfc84840-6&#34;&gt;Hogg and Holland 2008&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+ &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;a href=&#34;http://www.saga-gis.org/saga_tool_doc/2.2.2/ta_hydrology_15.html&#34;&gt;Documentation here.&lt;/a&gt; &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Lake Serene</title>
+      <link>http://s-kganz.github.io/hiking/lkserene/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://s-kganz.github.io/hiking/lkserene/</guid>
+      <description>&lt;p&gt;&lt;em&gt;6/2/2019&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Lake Serene is the Mt. Si of the Highway 2 corridor. That is to say - strenuous yet beautiful hiking and lots of people. My first experience with the trail was a line of some 20+ signs saying &amp;ldquo;NO PARKING&amp;rdquo; on the side of the road. After parking in what was probably the last spot in the lot (at like 7 am!!) and starting up the trail, I was soon walking behind a group playing music out of a speaker.&lt;/p&gt;
+&lt;p&gt;So yeah&amp;hellip; good start.&lt;/p&gt;
+&lt;p&gt;If people are a problem for you, save this one for the off season and bring spikes. But if you can deal with a conga line, Lake Serene is probably the most spectacular hike on Highway 2. Nearby Bridal Veil Falls feeds the lower sections of the trail with quaint ponds and creeks. Absolutely no issues with the trail, probably owing to the maintenance warranted by the crowds.&lt;/p&gt;
+&lt;p&gt;Roughly half way up the trail you come to a turn off for Bridal Veil Falls. Take this on your way up; you will be rewarded with a torrential waterfall paired with your first good view of the ridgelines on the north side of the highway.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/lkserene/falls.JPG&#34; alt=&#34;Bridal Veil Falls&#34; width=&#34;4032&#34; height=&#34;3024&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Bridal Veil Falls&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The trail becomes a little more difficult as you get closer to the lake. But press on and reach the crown jewel of this trail: over a square mile of open water framed by scree and snowmelt.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/lkserene/lake.JPG&#34; alt=&#34;Eastward view of the lake.&#34; width=&#34;2994&#34; height=&#34;3348&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Eastward view of the lake.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;No overnight use is permitted, but as you get closer to the lake there are plenty of small clearings to use as lunch spots. The water is pure snowmelt and a welcome top-off for what you drank on the way up. As an added bonus, the difference in elevation from the lake to the ridge top on the south side of the lake is roughly the same as the elevation you just climbed on the trail!&lt;/p&gt;
+&lt;p&gt;Swimmers are a common site, but do take care to practice leave no trace. When I visited, there were plenty of people being disrespectful of other users (see: playing music, dropping beer cans, etc.). One would hope that the lake will remain in pristine conditions for future generations of hikers.&lt;/p&gt;
+&lt;p&gt;In short: maybe save this one for the fall. And, bring a trash bag to clean up what others may have left behind.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Mt. Si</title>
+      <link>http://s-kganz.github.io/hiking/mtsi/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://s-kganz.github.io/hiking/mtsi/</guid>
+      <description>&lt;p&gt;&lt;em&gt;12/31/2019 (most recently)&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;One cannot recreate in Washington without eventually going to Mt. Si. The trail is well-maintained, connects to other long-distance trails, and you can literally take a bus to it from Seattle. I haven&amp;rsquo;t personally taken that route, but &lt;em&gt;dang&lt;/em&gt; would it be cool to get to a hike via Orca card.&lt;/p&gt;
+&lt;p&gt;In fact, taking the bus is probably the optimal way to get to Mt. Si. The hike&amp;rsquo;s extreme popularity means that the parking lot, already quite large, fills up in the morning during the peak season. Get there as early as you can (or, like myself, go in the off season).&lt;/p&gt;
+&lt;p&gt;Anyway, I like to use Si to open the hiking season. The route is the perfect mix of rugged switchbacks and familiarity that makes missing gear less severe while still busting your calves. No wonder this is the most popular hike in the state.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mtsi/wedging.JPG&#34; alt=&#34;Wedging in rocks some distance up the trail.&#34; width=&#34;377&#34; height=&#34;400&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Wedging in rocks some distance up the trail.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;For first-timers, make sure you take some time to look at the interpretive signs roughly a mile into the hike. Mt. Si has some interesting mythology in local Native American cultures and to this day you can still see remnants of wildfires early in the 20th century.&lt;/p&gt;
+&lt;p&gt;As for sights, the way up is mostly your standard PNW second-growth forest with occasional exposed rock faces. Mt. Si was designated as a state conservation area only in 1977. Before that, mining and logging tore out all of the original scenery.&lt;/p&gt;
+&lt;p&gt;Proceeding upward, the cedars and douglas firs transition to thinner mountain hemlock forest with occasional peaks through the trees. The first real view point is above some scree next to a heavily-vandalized trail marker. Continue through a short shaded trail before reaching the true destination of the hike: Haystack Rock.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mtsi/nalgene.JPG&#34; alt=&#34;Looking west towards Seattle from the top.&#34; width=&#34;533&#34; height=&#34;400&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Looking west towards Seattle from the top.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Scrambling up the back side of Haystack is doable (as those who stand atop it can atest), but in my opinion a sketchy scramble isn&amp;rsquo;t the best way to cap off a hike of Si&amp;rsquo;s intensity. There&amp;rsquo;s plenty of space for lunch and pictures, just be careful of squirrels and birds who make a living on hikers&amp;rsquo; refuse (remember: no feeding!).&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mtsi/ax.JPG&#34; alt=&#34;A memorial at the base of Haystack.&#34; width=&#34;504&#34; height=&#34;400&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;A memorial at the base of Haystack.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Personally, I&amp;rsquo;ve been to Si enough that I don&amp;rsquo;t even take pictures anymore. It&amp;rsquo;s way more fun taking pictures for people who are summiting for the first time. In summary: get up early for parking, enjoy the switchbacks, and soak in the perfect starter hike on the I-90 corridor.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Mt. Washington</title>
+      <link>http://s-kganz.github.io/hiking/mtwashington/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://s-kganz.github.io/hiking/mtwashington/</guid>
+      <description>&lt;p&gt;&lt;em&gt;7/5/2020&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Fun story about this one. With the pandemic still in full swing, masks are an essential part of any form of outdoor recreation. So, you can imagine how silly I felt when after 10 minutes of driving to Mt. Washington, I realized that I had left my mask at home. Or, so I thought. After making the drive back and opening my trunk, there the mask was.&lt;/p&gt;
+&lt;p&gt;I felt a little sullen over wasting a half hour in transit. Today, after all, was fourth of July weekend and I had made the somewhat foolhardy decision of picking a popular hike. These feelings were perhaps compounded by the fact that I then got lost in the entrance to Olallie state park while looking for the Mt. Washington trailhead.&lt;/p&gt;
+&lt;p&gt;To anyone else planning on hiking Mt. Washington, here&amp;rsquo;s the way to the trailhead in as simple of instructions as I can provide. On I-90 going east, take exit 38. and go right at the T-intersection. Then, take the next right &lt;em&gt;immediately&lt;/em&gt;. The WTA page says you will cross a river before finding the turnoff. This is true, but you can&amp;rsquo;t really see the river from the road (or, maybe I&amp;rsquo;m just blind). Continue down this dirt road to the Homestead Valley Trailhead. Despite the name difference, this is the right spot.&lt;/p&gt;
+&lt;p&gt;Start on the trail, going rapidly uphill. You will come to the wide, graded, gravel-paved Palouse to Cascades trail (fun fact: this trail continually traverses almost the entire state of Washington!). Go right (west) and look for an intersection with a narrow footpath on the left (south) side. This trail should be marked for Mt. Washington.&lt;/p&gt;
+&lt;p&gt;Now, confident that you are in fact not lost, begin your walk upward. As you traverse the gradual uphill grade, look out for cool rock faces on the upslope side of the trail. Climbing is popular in the area, with pitons marking out the most common routes.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mtwashington/climb2.jpg&#34; alt=&#34;An upside-down hiking route. Notice the hanging carabiners.&#34; width=&#34;2969&#34; height=&#34;2751&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;An upside-down hiking route. Notice the hanging carabiners.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The trail continues upward before opening up somewhat at a ridge saddle. The trail makes a sharp bend coincident with a different trail, but the route then turns straight up the final ridge to the peak of Mt. Washington. As you near the summit, be sure to check behind you for good views of Diablo Lake. The summit itself is somewhat small, so consider taking lunch somewhat earlier.&lt;/p&gt;
+&lt;p&gt;When I reached the summit (thankfully I was a few minutes ahead of the crowds), the morning clouds had not yet burned off. But just a few moments before I got up to leave, they parted enough for me to get this picture!&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mtwashington/view.JPG&#34;  width=&#34;4032&#34; height=&#34;3024&#34;&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Maybe it was a good thing I thought I forgot my mask :)&lt;/p&gt;
+&lt;p&gt;Have fun, and stay safe out there!&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html class="nojs" lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Wetlands in Snohomish County – Keenan Ganz</title>
+<meta name="description" content="Wetlands are quite literally just wet land. But, simply having increased soil moisture or standing water is enough to make wetlands one of the most valuable parts of the …">
+<meta name="created" content="2019-08-22T00:00:00+0000">
+<meta name="modified" content="2019-08-22T00:00:00+0000">
+
+
+<meta property="og:site_name" content="Keenan Ganz">
+<meta property="og:title" content="Wetlands in Snohomish County">
+<meta property="og:url" content="http://s-kganz.github.io/science/wetlands/">
+<meta property="og:type" content="article">
+
+<meta name="generator" content="Hugo 0.74.3" />
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="theme-color" content="#ffffff">
+
+
+<link rel="canonical" href="http://s-kganz.github.io/science/wetlands/">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="stylesheet" href="/css/styles.07de9722ae74190da91740ecb1e12bbfa31de324e29ab4972bdcc4131519528c.css">
+<link rel="stylesheet" href="/css/print.27fc184f8670f41a2690985390779e7b20335a8fadff8fa015cf9417ffe50c36.css" media="print">
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "headline": "Wetlands in Snohomish County",
+    "datePublished": "2019-08-22T00:00:00Z",
+    "dateModified": "2019-08-22T00:00:00Z",
+    "url" : "http://s-kganz.github.io/science/wetlands/",
+    "description": "Wetlands are quite literally just wet land. But, simply having increased soil moisture or standing water is enough to make wetlands one of the most valuable parts of the …",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "http://s-kganz.github.io/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Keenan Ganz",
+      "url": "http://s-kganz.github.io/"
+    }
+  }
+</script>
+
+<script defer src="/js/lib/umbrella.min.b426107371d121c9a56a27aac9e9058ff592a021e2f4c3c94827fe70920d3cbb.js"></script>
+<script defer src="/js/script.min.8e4d91ebe0d9226621e408b7205bd7b009e4935608e4b29c4275116490cc836d.js"></script>
+
+
+</head>
+
+<body class="single-page">
+<div class="page layout__page layout__sidebar-second">
+<header class="header layout__header">
+
+<h1 class="header__site-name">
+<a href="/" title="Home" class="header__site-link" rel="home"><span>Keenan Ganz</span></a>
+</h1>
+<div class="region header__region">
+</div>
+</header>
+
+<nav class="main-menu layout__navigation">
+<h2 class="visually-hidden">Main menu</h2>
+<ul class="navbar">
+<li><a href="/">Home</a></li>
+<li><a href="/science/" class="active" aria-current="page">Science</a></li>
+<li><a href="/code/">Code</a></li>
+<li><a href="/hiking/">Hiking Log</a></li>
+</ul>
+</nav>
+
+
+<main class="main layout__main">
+<article class="section-science single-view">
+<header>
+<h1 class="title ">Wetlands in Snohomish County</h1>
+</header>
+<div class="content">
+<p>Wetlands are quite literally just wet land. But, simply having increased soil moisture or standing water is enough to make wetlands one of the most valuable parts of the ecosystem. They serve as amphibian habitat, salmon habitat, water filters, flood barriers, etc. It should come as no surprise that wetlands are an important character in Washington&rsquo;s land use regulation. Any time new construction takes place, the entire project (<em>should be</em>) inspected by hand for signs of wetlands.</p>
+<p>Collecting such data is <em>tedious</em>, and for good reason. <a href="https://www.fws.gov/wetlands/documents/Wetlands-and-Deepwater-Habitats-Classification-chart.pdf">Wetlands take on many forms</a> that are only obvious at certain times of the year. Identifying wetlands considers soil color, texture, redox features, vegetation types across multiple strata, cracked surfaces, and other features that all point towards excess moisture. The data form is <a href="https://www.spk.usace.army.mil/Portals/12/documents/regulatory/pdf/wmvc_df2.pdf">remarkably detailed</a> and one site may require as many as 15 such data forms. <em>And then</em>, once wetlands are identified, they are given a grade from 1-4 that defines regulatory implications. Ideally, highly-rated wetlands would be left untouched. But, developers can pay a fee or restore another section of their site to account for unavoidable impacts.</p>
+<figure class="image ">
+<img src="https://upload.wikimedia.org/wikipedia/commons/6/67/Skunk_Cabbage_Leaves.jpg" alt="Skunk cabbage">
+<figcaption>
+<p>Skunk cabbage is a fun wetland plant native to Washington state. Image source: Wikipedia</p>
+</figcaption>
+</figure>
+
+<p>The amount of work involved in wetland delineation means that it is unlikely the process will ever be completely automated. Delineation shouldn&rsquo;t be automated anyway; it&rsquo;s important that we make sure the land we develop doesn&rsquo;t harbor a rare piece of increasingly fragmented habitat. However, that doesn&rsquo;t mean that the process can&rsquo;t be streamlined. Wetland identification has been the goal of many researchers involved in landscape classification from remotely-sensed data.<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup></p>
+<p>To be clear, the goal of such work isn&rsquo;t to rate wetlands directly from remote data. Instead, we can point trained field biologists in the right direction. Reducing a 10-square mile area to just a few acres can save a lot of time and energy. LiDAR-derived elevation models are one way we can approach this problem. If you aren&rsquo;t familiar with LiDAR, it has a pretty cool Wikipedia page. The short of it is that by shooting a microwave laser from a plane down to the Earth&rsquo;s surface many thousand times per second, we can generate extremely precise elevation models that include information on vegetation and surface type.</p>
+<p>Fundamentally, generating a wetland model is like making a model of the land surface and pouring water over it. Consider this study area near Mill Creek, Washington, representing one drainage catchment around Thomas Lake.</p>
+<figure class="image ">
+<img src="/images/wetlands/study_area.png" alt="Study Area" width="612" height="622">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>Light blue polygons represent known wetlands in the area. This is a good site for a small case study because of the variety of drainage features present (large central wetland complex, suburban culverts, roadways, etc). Snohomish County collected aerial LiDAR at 3-foot resolution for various applications in surface water management. Filtering only to last-return ground points, we can interpolate an initial elevation model of the study area. In the below figure, the plot at upper right traces flow over a 2-land road along a flowline from the <a href="https://www.usgs.gov/core-science-systems/ngp/national-hydrography">National Hydrography Dataset</a>. The problem is that even though there is an underground pipe directing flow underneath the road, this is not well-represented in the LiDAR data.</p>
+<figure class="image ">
+<img src="/images/wetlands/culvert_problem.png" alt="Culvert Problem" width="666" height="464">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>Enter ANUDEM, a product from Australian National University that recalculates gridded elevation models from drainage features. Culverts, retention ponds, and other features can be passed to ANUDEM, which refines LiDAR to yield a hydrologically correct elevation model. After tuning parameters, we end up with a well-smoothed model.</p>
+<figure class="image ">
+<img src="/images/wetlands/dem_full.png" alt="Full DEM in 3D view" width="883" height="576">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>Now that we have an elevation model, how do we pour water over it? One measurement of the &ldquo;wetness&rdquo; of a particular location is the topographic wetness index (TWI), given by:</p>
+<p>$$ w = \ln \frac{\alpha}{\tan \beta} $$</p>
+<p>Where $$\alpha$$ represents uplsope catchment area (the area contributing flow to this point) and $$\beta$$ represents local slope. That&rsquo;s a pretty good start, but the resulting raster very strongly emphasizes flowlines.</p>
+<figure class="image ">
+<img src="/images/wetlands/twi.png" alt="Full DEM in 3D view" width="612" height="622">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>An alternative comes packaged in the GIS utility SAGA (System for Automated Geoscientific Analysis) as the Saga Wetness Index. This index utilizes a modified catchment area calculation and elevation above flow channels.<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup></p>
+<figure class="image ">
+<img src="/images/wetlands/swi.png" alt="Full DEM in 3D view" width="612" height="623">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>Much better. However, some small pleateaus remain as artifacts from DEM interpolation. Randomly sampling points inside and outside wetland polygons can give us an idea of how to map SWI values to the probability of an area being considered wet. Points were sampled and binned to generate a histogram. For each bin, the proportion of points within wetlands was calculated. A sigmoidal curve was fit to these points as shown below:</p>
+<figure class="image ">
+<img src="/images/wetlands/swi_fit.png" alt="Full DEM in 3D view" width="798" height="599">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>Applying this map to the SWI raster results in the final wetness likelihood raster:</p>
+<figure class="image ">
+<img src="/images/wetlands/swi_prob.png" alt="Full DEM in 3D view" width="538" height="547">
+<figcaption>
+<p>Data Source: Snohomish County</p>
+</figcaption>
+</figure>
+
+<p>The central wetland complex is delineated well. However, artifacts from interpolation remain and wetness may be overestimated in the southeastern region of the study area. It is important to note that the study area was not exhaustively searched for wetlands.</p>
+<p>Nevertheless, this works demonstrates the viability of alternative wetness indices for wetland delineation. Thank you to Snohomish County Public Works for supporting me on this project!</p>
+<p>Footnotes:</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>A few studies include:</p>
+<ul>
+<li><a href="https://pdfs.semanticscholar.org/5759/bcab82819f9d63b99bb04b2a6d9dcf675ab4.pdf">Tagestad et. al. 2009</a></li>
+<li><a href="https://www.tandfonline.com/doi/abs/10.5589/m13-038">Millard and Richardson 2013</a></li>
+<li><a href="https://pubs.cif-ifc.org/doi/pdf/10.5558/tfc84840-6">Hogg and Holland 2008</a></li>
+</ul>
+ <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></li>
+<li id="fn:2" role="doc-endnote">
+<p><a href="http://www.saga-gis.org/saga_tool_doc/2.2.2/ta_hydrology_15.html">Documentation here.</a> <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+
+</div>
+</article>
+</main>
+
+
+<footer class="footer layout__footer">
+<p><span>© Keenan Ganz</span></p>
+
+
+</footer>
+
+</div>
+</body>
+</html>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
