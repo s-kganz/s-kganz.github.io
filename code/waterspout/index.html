@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html class="nojs" lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Mapping Catchment Area with the Google Maps API and Flask – Keenan Ganz</title>
+<meta name="description" content="This post is about a project I completed in 24 hours at HackRPI 2019.  Inspiration The hill RPI sits on is geologically unique. Bedrock is very close to the surface, …">
+<meta name="created" content="2019-09-15T21:07:34-0700">
+<meta name="modified" content="2019-09-15T21:07:34-0700">
+
+
+<meta property="og:site_name" content="Keenan Ganz">
+<meta property="og:title" content="Mapping Catchment Area with the Google Maps API and Flask">
+<meta property="og:url" content="http://s-kganz.github.io/code/waterspout/">
+<meta property="og:type" content="article">
+
+<meta name="generator" content="Hugo 0.74.3" />
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="theme-color" content="#ffffff">
+
+
+<link rel="canonical" href="http://s-kganz.github.io/code/waterspout/">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="stylesheet" href="/css/styles.07de9722ae74190da91740ecb1e12bbfa31de324e29ab4972bdcc4131519528c.css">
+<link rel="stylesheet" href="/css/print.27fc184f8670f41a2690985390779e7b20335a8fadff8fa015cf9417ffe50c36.css" media="print">
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "headline": "Mapping Catchment Area with the Google Maps API and Flask",
+    "datePublished": "2019-09-15T21:07:34-07:00",
+    "dateModified": "2019-09-15T21:07:34-07:00",
+    "url" : "http://s-kganz.github.io/code/waterspout/",
+    "description": "This post is about a project I completed in 24 hours at HackRPI 2019.  Inspiration The hill RPI sits on is geologically unique. Bedrock is very close to the surface, …",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "http://s-kganz.github.io/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Keenan Ganz",
+      "url": "http://s-kganz.github.io/"
+    }
+  }
+</script>
+
+<script defer src="/js/lib/umbrella.min.b426107371d121c9a56a27aac9e9058ff592a021e2f4c3c94827fe70920d3cbb.js"></script>
+<script defer src="/js/script.min.8e4d91ebe0d9226621e408b7205bd7b009e4935608e4b29c4275116490cc836d.js"></script>
+
+
+</head>
+
+<body class="single-page">
+<div class="page layout__page layout__sidebar-second">
+<header class="header layout__header">
+
+<h1 class="header__site-name">
+<a href="/" title="Home" class="header__site-link" rel="home"><span>Keenan Ganz</span></a>
+</h1>
+<div class="region header__region">
+</div>
+</header>
+
+<nav class="main-menu layout__navigation">
+<h2 class="visually-hidden">Main menu</h2>
+<ul class="navbar">
+<li><a href="/">Home</a></li>
+<li><a href="/code/" class="active" aria-current="page">Code</a></li>
+<li><a href="/science/">Science</a></li>
+<li><a href="/hiking/">Hiking Log</a></li>
+</ul>
+</nav>
+
+
+<main class="main layout__main">
+<article class="section-code single-view">
+<header>
+<h1 class="title ">Mapping Catchment Area with the Google Maps API and Flask</h1>
+</header>
+<div class="content">
+<p><em>This post is about a project I completed in 24 hours at <a href="https://hackrpi.com/">HackRPI 2019</a>.</em></p>
+<figure class="image ">
+<img src="/images/waterspout/logo.png"  width="1792" height="495">
+</figure>
+
+<h2 id="inspiration">Inspiration</h2>
+<p>The hill RPI sits on is geologically unique. Bedrock is very close to the surface, which means that when it rains, water stays close to the surface and can cause flooding. In fact, this exact thing happened right before classes started this year and tore out plenty of infrastructure on campus.</p>
+<p><img src="https://poly.rpi.edu/media/images/EMPAC_Damage_-_Brookelyn_Parslow.width-1000.jpg" alt="Flood-2"></p>
+<p>I wanted to find a way to programmatically identify places on campus where flooding would be an issue during other precipitation events. This will become an even greater issue in the future as climate change results in stronger storms.</p>
+<p>Also, fun fact, the rocks exposed on the hill near DCC are over 100 million years old!!</p>
+<h2 id="what-it-does">What it does</h2>
+<p>Typically, a homeowner has to pay their local municipality or insurance adjuster to determine if their home is in a hazardous flood area. Waterspout calculates upslope contributing area, an important dataset for calculating flood risk, using public elevation models and open-source GIS utilities. After clicking on their home in a Google Maps window, homeowners can quickly see how much precipitation will flow to their home during a precipitation event.</p>
+<figure class="image ">
+<img src="/images/waterspout/catchment.jpg" alt="Contributing area for 15th St. and Peoples Ave. intersection" width="694" height="387">
+<figcaption>
+<p>Contributing area for 15th St. and Peoples Ave. intersection</p>
+</figcaption>
+</figure>
+
+<h2 id="how-i-built-it">How I built it</h2>
+<p>Waterspout uses a 1-meter resolution digital elevation model (DEM) from the <a href="https://gis.ny.gov/elevation/">New York state GIS Clearinghouse</a> centered on Troy, NY. A mosaic of several DEMs was stitched together and preprocessed with the sink-filling algorithm of Wang and Liu. A pour point is identified from a form in the application, and a contributing area raster is generated using Freeman&rsquo;s distributed flow algorithm. This raster is passed to a classifier that identifies all cells which contribute a meaningful amount of their flow to produce a raster of contributing/noncontributing cells. A polygon is delineated from contributing points, simplified, and then reprojected from the NY stateplane coordiante system into latitude/longitude for display in the Maps window.</p>
+<figure class="image ">
+<img src="/images/waterspout/dem.jpg" alt="Detail of DEM near Poestenkill Falls" width="695" height="372">
+<figcaption>
+<p>Detail of DEM near Poestenkill Falls</p>
+</figcaption>
+</figure>
+
+<h2 id="challenges-i-ran-into">Challenges I ran into</h2>
+<p>My initial plan was to represent contributing area as an image. However, dynamically hosting an image every time the API was called proved difficult. This led me to represent contributing area as a polygon.</p>
+<p>Another issue was building an interface for Python to communicate with SAGA GIS. SAGA is built in C and is a nearly 20 year-old piece of software. Calling specific modules on the command line was often temperamental and required a lot of digging through SAGA&rsquo;s documentation. There were many moments where I thought I wouldn&rsquo;t finish because a certain DLL wasn&rsquo;t installed right or my Python environment was out of wack.</p>
+<h2 id="accomplishments-that-im-proud-of">Accomplishments that I&rsquo;m proud of</h2>
+<p>I&rsquo;m really proud of completing this project entirely on my own. I had never used JS or the Maps API before this hackathon and I&rsquo;m very happy with the result. Being able to make a project about RPI that combines my passion for conservation and CS is also very rewarding!</p>
+<h2 id="what-i-learned">What I learned</h2>
+<p>I learned how GIS utilities can do more than just local analysis and that mapping APIs make for useful visualizations. I also learned how JS, Python, and HTML can get along together in a Flask environment. On the hydrology side of things, I have a much better understanding of how flow algorithms work after trying out several for this project.</p>
+<h2 id="whats-next-for-waterspout">What&rsquo;s next for Waterspout</h2>
+<p>Upslope contributing area is a strong first step for determining flood risk, but there&rsquo;s a lot more analysis that can be done. Weighting contributing area by elevation above the pour point is a good measure of flow energy, local slope is positively correlated with flow power, etc. For refining the initial DEM, there&rsquo;s a lot more that can be done with permability and drainage features datasets.</p>
+
+
+</div>
+</article>
+</main>
+
+
+<footer class="footer layout__footer">
+<p><span>© Keenan Ganz</span></p>
+
+
+</footer>
+
+</div>
+</body>
+</html>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>

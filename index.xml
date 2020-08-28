@@ -6,8 +6,368 @@
     <description>Recent content in Maps, Code, and More on Keenan Ganz</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 22 Aug 2019 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 15 Aug 2020 21:07:34 -0700</lastBuildDate>
     <atom:link href="http://s-kganz.github.io/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Multithreading in Kivy</title>
+      <link>http://s-kganz.github.io/code/kivy_multithreading/</link>
+      <pubDate>Sat, 15 Aug 2020 21:07:34 -0700</pubDate>
+      <guid>http://s-kganz.github.io/code/kivy_multithreading/</guid>
+      <description>&lt;p&gt;I spend a fair amount of time thinking about UIs in kivy for a &lt;a href=&#34;https://github.com/s-kganz/PySpecUI&#34;&gt;side project&lt;/a&gt;. An issue that one runs into pretty quickly is blocking code preventing the UI from being responsive. This is especially true when using some of the compute-intensive aspects of the scientific python ecosystem (e.g. pretty much everything in &lt;code&gt;scipy.optimize&lt;/code&gt;). Unfortunately, there isn&amp;rsquo;t a ton of documentation on the internet from other people who have found solutions to this problem. But, getting a basic multithreaded application working is definitely in the scope of a single blog post. Concurrent programming carries its own set of need-to-know considerations, so I encourage you to read the links in this post. Even if they don&amp;rsquo;t provide copy-pasteable snippets for what you need, they are highly cogent discussions on writing good concurrent code.&lt;/p&gt;
+&lt;h2 id=&#34;flavors-of-concurrency-in-python&#34;&gt;Flavors of Concurrency in Python&lt;/h2&gt;
+&lt;p&gt;Before we can get into the weeds of this problem, it&amp;rsquo;s worth taking a moment to discuss what we mean by concurrency. There&amp;rsquo;s no need (and in fact, quite a few benefits) to write a great deal of structure that you don&amp;rsquo;t actually need.&lt;/p&gt;
+&lt;p&gt;Standard programs execute &lt;em&gt;sequentially&lt;/em&gt;. That is, the individual instructions represented by your code are executed one after the other as directed by control flow (&lt;code&gt;if&lt;/code&gt;, &lt;code&gt;for&lt;/code&gt;, etc.). For a UI program, the disadvantage of sequential execution is that the program will not be responsive while intensive code executes in the background (aka &lt;em&gt;blocking&lt;/em&gt;). &lt;em&gt;Concurrent&lt;/em&gt; programs can execute multiple tasks at the same time by leveraging multiple threads i.e. multithreading (for a hardware-level discussion, see: &lt;a href=&#34;https://en.wikipedia.org/wiki/Simultaneous_multithreading&#34;&gt;SMT&lt;/a&gt;). It is additionally worth noting that &lt;em&gt;asynchronous&lt;/em&gt; programs, whose order of execution depends on an internal scheduling system (usually an event loop), can possibly use multiple threads.&lt;/p&gt;
+&lt;p&gt;Now, narrowing to python, you have definitely written sequential code already. Lets first consider asynchronous code, which fortunately in python isn&amp;rsquo;t too verbose thanks to the &lt;code&gt;asyncio&lt;/code&gt; library. For example, consider this snippet adapted from this &lt;a href=&#34;https://snarky.ca/how-the-heck-does-async-await-work-in-python-3-5/&#34;&gt;fantastic blog post by Brett Cannon&lt;/a&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; asyncio
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; datetime &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; datetime
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;@asyncio.coroutine&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;countdown&lt;/span&gt;(task_name, n):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; n &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;:
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Number: {} (Task {})&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format(n, task_name))
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;yield&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; asyncio.sleep(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+        n &lt;span style=&#34;color:#f92672&#34;&gt;-=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; __name__ &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;:
+    start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    loop &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get_event_loop()
+    tasks &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; [
+        asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;ensure_future(countdown(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;A&amp;#39;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;)),
+        asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;ensure_future(countdown(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;B&amp;#39;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;))
+    ]
+    loop&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;run_until_complete(asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;wait(tasks))
+    loop&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;close()
+    end &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Execution finished in {:.2f} seconds&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format((end &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; start)&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;seconds))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;There&amp;rsquo;s a lot of constructs in this script that you may not have seen before. Instead of digging into what&amp;rsquo;s going on, let&amp;rsquo;s start by considering if this code truly won&amp;rsquo;t block. The output we get from this seems like what we want:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Number: 3 (Thread A)
+Number: 6 (Thread B)
+Number: 2 (Thread A)
+Number: 5 (Thread B)
+Number: 1 (Thread A)
+Number: 4 (Thread B)
+Number: 3 (Thread B)
+Number: 2 (Thread B)
+Number: 1 (Thread B)
+Execution finished in 6.00 seconds
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Ok, cool. We have two tasks that are submitted to an event loop and execute essentially at the same time. However, in order for &lt;code&gt;asyncio&lt;/code&gt; to truly be concurrent, your code &lt;strong&gt;must&lt;/strong&gt; use the &lt;code&gt;async def/await/yield&lt;/code&gt; statements, otherwise it will block. This is not doable if your blocking functions were not written to be asynchronous, which is the case for the vast majority of outside packages. Let&amp;rsquo;s modify the example somewhat to see what this means:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; asyncio
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; datetime &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; datetime
+&lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; time
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;@asyncio.coroutine&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;countdown&lt;/span&gt;(task_name, n):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; n &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;:
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Number: {} (Task {})&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format(n, task_name))
+        time&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;sleep(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) &lt;span style=&#34;color:#75715e&#34;&gt;# Or any other intense computation&lt;/span&gt;
+        n &lt;span style=&#34;color:#f92672&#34;&gt;-=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; __name__ &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;:
+    start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    loop &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get_event_loop()
+    tasks &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; [
+        asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;ensure_future(countdown(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;A&amp;#39;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;)),
+        asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;ensure_future(countdown(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;B&amp;#39;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;))
+    ]
+    loop&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;run_until_complete(asyncio&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;wait(tasks))
+    loop&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;close()
+    end &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Execution finished in {:.2f} seconds&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format((end &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; start)&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;seconds))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Now, the individual tasks block.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Number: 3 (Task A)
+Number: 2 (Task A)
+Number: 1 (Task A)
+Number: 6 (Task B)
+Number: 5 (Task B)
+Number: 4 (Task B)
+Number: 3 (Task B)
+Number: 2 (Task B)
+Number: 1 (Task B)
+Execution finished in 9.00 seconds
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;This is not surprising, though. The point of &lt;code&gt;yield&lt;/code&gt; is to pass control of the main thread to different scopes in the program. As Brett mentions in the above post, this functionality originated from generators. In that context, &lt;code&gt;yield&lt;/code&gt; can be better understood as pausing execution until the event loop returns control. There is a potential workaround if your blocking code can be broken up into meaningful chunks, with each segment delineated by a &lt;code&gt;yield&lt;/code&gt; statement.&lt;/p&gt;
+&lt;p&gt;However, this is unsatisfactory if you&amp;rsquo;re using non-asynchronous code that cannot be modified for some reason (and, there are many). So, how can we write truly concurrent code that will not block for functions that were not designed to be asynchronous?&lt;/p&gt;
+&lt;h2 id=&#34;a-multithreaded-example&#34;&gt;A Multithreaded Example&lt;/h2&gt;
+&lt;p&gt;Python provides a &lt;code&gt;concurrent&lt;/code&gt; package with convenient high-level interfaces that make it somewhat more convenient than the lower-level &lt;code&gt;threading&lt;/code&gt; package. The class we are interested in is &lt;code&gt;concurrent.futures.ThreadPoolExecutor&lt;/code&gt;. Quoting from the docs, this class &amp;ldquo;uses a pool of at most &lt;code&gt;max_workers&lt;/code&gt; threads to execute calls asynchronously&amp;rdquo;. This means that we can sidestep the expense of starting/stopping threads dynamically; the &lt;code&gt;ThreadPoolExecutor&lt;/code&gt; handles all that for us. Let&amp;rsquo;s run an example with our blocking countdown from before:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; concurrent.futures &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; ThreadPoolExecutor
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; datetime &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; datetime
+&lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; time
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;countdown&lt;/span&gt;(task_name, n):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; n &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;:
+        time&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;sleep(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) &lt;span style=&#34;color:#75715e&#34;&gt;# Or any other intense computation&lt;/span&gt;
+        n &lt;span style=&#34;color:#f92672&#34;&gt;-=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Task {} finished&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format(task_name))
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; __name__ &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;:
+    start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    executor &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ThreadPoolExecutor(max_workers&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;4&lt;/span&gt;)
+    futures &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; []
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; letter &lt;span style=&#34;color:#f92672&#34;&gt;in&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;ABCDEFGHIJKL&amp;#39;&lt;/span&gt;:
+        futures&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;append(executor&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;submit(countdown, letter, &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;))
+        
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; all(future&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;done() &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; future &lt;span style=&#34;color:#f92672&#34;&gt;in&lt;/span&gt; futures):
+        time&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;sleep(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+
+    end &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; datetime&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Execution finished in {:.2f} seconds&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format((end &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; start)&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;seconds))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The output you get should look like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Task A finished
+Task B finished
+Task C finished
+Task D finished
+Task E finished
+Task H finished
+Task F finished
+Task G finished
+Task I finished
+Task J finished
+Task K finished
+Task L finished
+Execution finished in 10.00 seconds
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now this is the result that we are after. If each of these tasks executed sequentially, it would take &lt;code&gt;12 * 3 = 36&lt;/code&gt; seconds. But, since the &lt;code&gt;ThreadPoolExecutor&lt;/code&gt; divides the work among four different threads, execution only takes 10 seconds.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s break this down a little bit. First, we instantiate an executor that can use at max 4 workers. This means that at most, 4 function calls can be run by the executor before tasks will have to idle before being executed. Second, the main thread can retain access to data produced by a call to the executor via &lt;code&gt;Future&lt;/code&gt; objects returned by &lt;code&gt;ThreadPoolExecutor.submit&lt;/code&gt;. It is worth considering the interface of the &lt;code&gt;Future&lt;/code&gt; object &lt;a href=&#34;https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future&#34;&gt;in the docs&lt;/a&gt;. In particular, remember that we can get return values from &lt;code&gt;Future&lt;/code&gt;s, check if the task is running, cancel tasks, and so on. Also, it is very important to remember that if a task raises an exception, &lt;em&gt;the exception will not bubble up the call stack unless you explicitly check for one with&lt;/em&gt; &lt;code&gt;Future.exception&lt;/code&gt; and raise it. Last, although &lt;code&gt;ThreadPoolExecutor&lt;/code&gt; does offer a significant degree of separation between the main thread and the blocking code, see what happens if you uncomment the &lt;code&gt;while&lt;/code&gt; loop and run the script again. The print statement showing end of execution will immediately fire, but the script will not terminate until all tasks are finished.&lt;/p&gt;
+&lt;h2 id=&#34;the-goal&#34;&gt;The Goal&lt;/h2&gt;
+&lt;p&gt;Let&amp;rsquo;s build a really simple kivy application that utilizes multithreading to show prime and palindromic numbers in the UI without blocking user input. A key consideration to keep in mind here is that kivy absolutely requires that all operations on UI objects happen in the main thread. If you modify widget properties from another thread, beware and be absolutely sure you know what you are doing.&lt;/p&gt;
+&lt;h2 id=&#34;first-steps&#34;&gt;First Steps&lt;/h2&gt;
+&lt;p&gt;These are some functions we will use for our blocking code. Yes, these are poor implementations. But, since slow code is kind of why we are here, it works for this example.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;is_prime&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Checks if a number is prime.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;in&lt;/span&gt; range(&lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;, n):
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; n &lt;span style=&#34;color:#f92672&#34;&gt;%&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;: &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; False
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; True
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_next_prime&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Returns the next prime number larger than n.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; is_prime(n): n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; n
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_next_palindrome&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Returns the next palindromic number larger than n.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; str(n) &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; str(n)[::&lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;]: n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; n
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And, this is the kv file.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-yaml&#34; data-lang=&#34;yaml&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#: kivy 1.11.1&lt;/span&gt;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;lt;MainLayout@BoxLayout&amp;gt;&lt;/span&gt;:
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;palindrome_label&lt;/span&gt;: palindrome_label
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;prime_label&lt;/span&gt;: prime_label
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;prime&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;100000000&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;palindrome&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;10000001&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;orientation&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;vertical&amp;#39;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;BoxLayout&lt;/span&gt;:
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;orientation&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;horizontal&amp;#39;&lt;/span&gt;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;Label&lt;/span&gt;:
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;id&lt;/span&gt;: palindrome_label
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;text&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;The current palindrome is {}&amp;#39;&lt;/span&gt;.format(root.palindrome)
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;Label&lt;/span&gt;:
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;id&lt;/span&gt;: prime_label
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;text&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;The current prime is {}&amp;#39;&lt;/span&gt;.format(root.prime)
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;BoxLayout&lt;/span&gt;:
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;orientation&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;horizontal&amp;#39;&lt;/span&gt;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;Button&lt;/span&gt;:
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;text&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Get next palindrome&amp;#39;&lt;/span&gt;
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;on_press&lt;/span&gt;: app.update_palindrome()
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;Button&lt;/span&gt;:
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;text&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;Get next prime&amp;#39;&lt;/span&gt;
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;on_press&lt;/span&gt;: app.update_prime()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Finally, the rest of the implementation in the same script as the blocking code.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; concurrent.futures &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; ThreadPoolExecutor
+&lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; kivy
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; kivy.app &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; App
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; kivy.properties &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; ObjectProperty, NumericProperty
+&lt;span style=&#34;color:#f92672&#34;&gt;from&lt;/span&gt; kivy.uix.boxlayout &lt;span style=&#34;color:#f92672&#34;&gt;import&lt;/span&gt; BoxLayout
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;is_prime&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Checks if a number is prime.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;in&lt;/span&gt; range(&lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;, n):
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; n &lt;span style=&#34;color:#f92672&#34;&gt;%&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;: &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; False
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; True
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_next_prime&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Returns the next prime number larger than n.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; is_prime(n): n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; n
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_next_palindrome&lt;/span&gt;(n):
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;&amp;#39;&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    Returns the next palindromic number larger than n.
+&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;    &amp;#39;&amp;#39;&amp;#39;&lt;/span&gt;
+    n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; str(n) &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; str(n)[::&lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;]: n &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; n
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;MainLayout&lt;/span&gt;(BoxLayout):
+    palindrome_label &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ObjectProperty(None)
+    prime_label &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ObjectProperty(None)
+    palindrome &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; NumericProperty(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+    prime &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; NumericProperty(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AsyncApp&lt;/span&gt;(App):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;build&lt;/span&gt;(self):
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; MainLayout()
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout
+    
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_palindrome&lt;/span&gt;(self):
+        current &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;palindrome
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;palindrome &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; get_next_palindrome(current)
+    
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_prime&lt;/span&gt;(self):
+        current &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;prime
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;prime &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; get_next_prime(current)
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; __name__ &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;__main__&amp;#39;&lt;/span&gt;:
+    AsyncApp()&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;run()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;em&gt;Sidebar: There&amp;rsquo;s a lot of code here and we are going to be adding to it, so here&amp;rsquo;s a link to the &lt;a href=&#34;https://gist.github.com/s-kganz/f7376cc683185d3ec5f704bf133d00c3&#34;&gt;blocking&lt;/a&gt; and &lt;a href=&#34;https://gist.github.com/s-kganz/1ed59e07b4010dc661d7de763a733ea9&#34;&gt;non-blocking&lt;/a&gt; versions of the app to save you some copy-pasting.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Running the main file, you should see something that looks like this:&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/kivy_multithreading/app.png&#34; alt=&#34;UI&#34; width=&#34;882&#34; height=&#34;664&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;A stunningly beautiful design.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Getting the next palindrome executes essentially instantly. But, getting the next prime hangs for a couple of seconds. As a result, the splitter and buttons remain unresponsive. To solve this problem, we can use a &lt;code&gt;ThreadPoolExecutor&lt;/code&gt; to encapsulate getting the next number in its own thread when a button is clicked. But first, does calculating the next palindrome really require its own thread? To be honest, when I started writing this I thought it would. However, it has no issue keeping up with our button presses. So, we can keep things simpler and only worry about multithreading the logic for prime numbers.&lt;/p&gt;
+&lt;h2 id=&#34;more-threads&#34;&gt;More Threads!&lt;/h2&gt;
+&lt;p&gt;Adding multithreading to the application is not particularly difficult, but it is critical to have pseudocode for multithreaded functions well thought-out before implementing them since &lt;a href=&#34;https://bholley.net/blog/2015/must-be-this-tall-to-write-multi-threaded-code.html&#34;&gt;debugging multithreaded code is&amp;hellip; hard&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s the plan:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;On prime button press, check if thread for prime numbers is running.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;If Yes, return (i.e. don&amp;rsquo;t calculate another one)&lt;/li&gt;
+&lt;li&gt;If No, start a new thread that calls &lt;code&gt;get_next_prime&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;When a thread starts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Instantiate a future object to retain access to the thread&lt;/li&gt;
+&lt;li&gt;Schedule the clock to repeatedly check the thread&amp;rsquo;s status&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;When checking thread status:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Check if the thread is still running:
+&lt;ul&gt;
+&lt;li&gt;If Yes:
+&lt;ul&gt;
+&lt;li&gt;Return, check back next time&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;If No:
+&lt;ul&gt;
+&lt;li&gt;Check if the thread threw an exception:
+&lt;ul&gt;
+&lt;li&gt;If Yes, raise it&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Get the return value from the thread, update the UI&lt;/li&gt;
+&lt;li&gt;Unschedule status check from the clock&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There&amp;rsquo;s a lot of moving parts here, but individually they aren&amp;rsquo;t too tough. A good analogy is ordering a package. When the user wants to get the next prime, we place an order for it in another thread. Every day or so, we look outside to see if the package arrived. If the delivery failed, raise the error. Once the package arrives, send it to the user and then stop checking for the package every day.&lt;/p&gt;
+&lt;p&gt;Now, let&amp;rsquo;s implement this. Let&amp;rsquo;s start by instantiating an executor in the application&amp;rsquo;s &lt;code&gt;__init__&lt;/code&gt;. Since we only want one prime to be calculated at a time, we only want one worker. Also, let&amp;rsquo;s add an attribute to hold onto the thread&amp;rsquo;s result.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AsyncApp&lt;/span&gt;(App):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; __init__(self, &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;args, &lt;span style=&#34;color:#f92672&#34;&gt;**&lt;/span&gt;kwargs):
+        super()&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;__init__(&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;args, &lt;span style=&#34;color:#f92672&#34;&gt;**&lt;/span&gt;kwargs)
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_executor &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ThreadPoolExecutor(max_workers&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; None
+        self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_clock_event &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; None
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Next, we can update &lt;code&gt;AsyncApp.update_prime&lt;/code&gt; (how punny) to start a new thread for the calculation when the button is clicked.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AsyncApp&lt;/span&gt;(App):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_prime&lt;/span&gt;(self):
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future &lt;span style=&#34;color:#f92672&#34;&gt;is&lt;/span&gt; None &lt;span style=&#34;color:#f92672&#34;&gt;or&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;done():
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Starting a new thread, current prime is {}&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;format(self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;prime))
+            self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_executor&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;submit(get_next_prime, self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;prime)
+        
+            self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_clock_event &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Clock&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;schedule_interval(self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;check_thread_status, &lt;span style=&#34;color:#ae81ff&#34;&gt;0.1&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If you haven&amp;rsquo;t seen the kivy &lt;code&gt;Clock&lt;/code&gt; before, the above call to &lt;code&gt;schedule_interval&lt;/code&gt; tells kivy&amp;rsquo;s internal event loop to call &lt;code&gt;check_thread_status&lt;/code&gt; every 0.1 seconds.&lt;/p&gt;
+&lt;p&gt;Finally, we create &lt;code&gt;check_thread_status&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AsyncApp&lt;/span&gt;(App):
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;check_thread_status&lt;/span&gt;(self, &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;args):
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;done():
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt;:
+            maybe_e &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;exception()
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; maybe_e &lt;span style=&#34;color:#f92672&#34;&gt;is&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; None: 
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;raise&lt;/span&gt; maybe_e
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt;:
+                next_prime &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_future&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;result()
+                self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;layout&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;prime &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; next_prime
+                Clock&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;unschedule(self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;_clock_event)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run the app and&amp;hellip; mostly success. The splitter and palindrome buttons remain responsive while the next prime is calculated, but they lag pretty hard. I think that this speaks to just how much brute-forcing primes sucks. With other modules, the application doesn&amp;rsquo;t struggle nearly as much.&lt;/p&gt;
+&lt;p&gt;But still! In this way we can build a GUI that can do heavy computations without losing interactivity.&lt;/p&gt;
+&lt;h2 id=&#34;extensions&#34;&gt;Extensions&lt;/h2&gt;
+&lt;p&gt;This application is a fairly simple use case of multithreading. If your application needs to handle several threads at once, posting data to the main thread at irregular intervals, using a &lt;code&gt;queue&lt;/code&gt; object to hold the &lt;code&gt;Future&lt;/code&gt;s is a good solution since python&amp;rsquo;s implementation of queues is threadsafe.&lt;/p&gt;
+&lt;p&gt;With that, happy coding!&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Mapping Catchment Area with the Google Maps API and Flask</title>
+      <link>http://s-kganz.github.io/code/waterspout/</link>
+      <pubDate>Sun, 15 Sep 2019 21:07:34 -0700</pubDate>
+      <guid>http://s-kganz.github.io/code/waterspout/</guid>
+      <description>&lt;p&gt;&lt;em&gt;This post is about a project I completed in 24 hours at &lt;a href=&#34;https://hackrpi.com/&#34;&gt;HackRPI 2019&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/waterspout/logo.png&#34;  width=&#34;1792&#34; height=&#34;495&#34;&gt;
+&lt;/figure&gt;
+
+&lt;h2 id=&#34;inspiration&#34;&gt;Inspiration&lt;/h2&gt;
+&lt;p&gt;The hill RPI sits on is geologically unique. Bedrock is very close to the surface, which means that when it rains, water stays close to the surface and can cause flooding. In fact, this exact thing happened right before classes started this year and tore out plenty of infrastructure on campus.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://poly.rpi.edu/media/images/EMPAC_Damage_-_Brookelyn_Parslow.width-1000.jpg&#34; alt=&#34;Flood-2&#34;&gt;&lt;/p&gt;
+&lt;p&gt;I wanted to find a way to programmatically identify places on campus where flooding would be an issue during other precipitation events. This will become an even greater issue in the future as climate change results in stronger storms.&lt;/p&gt;
+&lt;p&gt;Also, fun fact, the rocks exposed on the hill near DCC are over 100 million years old!!&lt;/p&gt;
+&lt;h2 id=&#34;what-it-does&#34;&gt;What it does&lt;/h2&gt;
+&lt;p&gt;Typically, a homeowner has to pay their local municipality or insurance adjuster to determine if their home is in a hazardous flood area. Waterspout calculates upslope contributing area, an important dataset for calculating flood risk, using public elevation models and open-source GIS utilities. After clicking on their home in a Google Maps window, homeowners can quickly see how much precipitation will flow to their home during a precipitation event.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/waterspout/catchment.jpg&#34; alt=&#34;Contributing area for 15th St. and Peoples Ave. intersection&#34; width=&#34;694&#34; height=&#34;387&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Contributing area for 15th St. and Peoples Ave. intersection&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;h2 id=&#34;how-i-built-it&#34;&gt;How I built it&lt;/h2&gt;
+&lt;p&gt;Waterspout uses a 1-meter resolution digital elevation model (DEM) from the &lt;a href=&#34;https://gis.ny.gov/elevation/&#34;&gt;New York state GIS Clearinghouse&lt;/a&gt; centered on Troy, NY. A mosaic of several DEMs was stitched together and preprocessed with the sink-filling algorithm of Wang and Liu. A pour point is identified from a form in the application, and a contributing area raster is generated using Freeman&amp;rsquo;s distributed flow algorithm. This raster is passed to a classifier that identifies all cells which contribute a meaningful amount of their flow to produce a raster of contributing/noncontributing cells. A polygon is delineated from contributing points, simplified, and then reprojected from the NY stateplane coordiante system into latitude/longitude for display in the Maps window.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/waterspout/dem.jpg&#34; alt=&#34;Detail of DEM near Poestenkill Falls&#34; width=&#34;695&#34; height=&#34;372&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Detail of DEM near Poestenkill Falls&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;h2 id=&#34;challenges-i-ran-into&#34;&gt;Challenges I ran into&lt;/h2&gt;
+&lt;p&gt;My initial plan was to represent contributing area as an image. However, dynamically hosting an image every time the API was called proved difficult. This led me to represent contributing area as a polygon.&lt;/p&gt;
+&lt;p&gt;Another issue was building an interface for Python to communicate with SAGA GIS. SAGA is built in C and is a nearly 20 year-old piece of software. Calling specific modules on the command line was often temperamental and required a lot of digging through SAGA&amp;rsquo;s documentation. There were many moments where I thought I wouldn&amp;rsquo;t finish because a certain DLL wasn&amp;rsquo;t installed right or my Python environment was out of wack.&lt;/p&gt;
+&lt;h2 id=&#34;accomplishments-that-im-proud-of&#34;&gt;Accomplishments that I&amp;rsquo;m proud of&lt;/h2&gt;
+&lt;p&gt;I&amp;rsquo;m really proud of completing this project entirely on my own. I had never used JS or the Maps API before this hackathon and I&amp;rsquo;m very happy with the result. Being able to make a project about RPI that combines my passion for conservation and CS is also very rewarding!&lt;/p&gt;
+&lt;h2 id=&#34;what-i-learned&#34;&gt;What I learned&lt;/h2&gt;
+&lt;p&gt;I learned how GIS utilities can do more than just local analysis and that mapping APIs make for useful visualizations. I also learned how JS, Python, and HTML can get along together in a Flask environment. On the hydrology side of things, I have a much better understanding of how flow algorithms work after trying out several for this project.&lt;/p&gt;
+&lt;h2 id=&#34;whats-next-for-waterspout&#34;&gt;What&amp;rsquo;s next for Waterspout&lt;/h2&gt;
+&lt;p&gt;Upslope contributing area is a strong first step for determining flood risk, but there&amp;rsquo;s a lot more analysis that can be done. Weighting contributing area by elevation above the pour point is a good measure of flow energy, local slope is positively correlated with flow power, etc. For refining the initial DEM, there&amp;rsquo;s a lot more that can be done with permability and drainage features datasets.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Wetlands in Snohomish County</title>
@@ -133,6 +493,50 @@
 &lt;p&gt;No overnight use is permitted, but as you get closer to the lake there are plenty of small clearings to use as lunch spots. The water is pure snowmelt and a welcome top-off for what you drank on the way up. As an added bonus, the difference in elevation from the lake to the ridge top on the south side of the lake is roughly the same as the elevation you just climbed on the trail!&lt;/p&gt;
 &lt;p&gt;Swimmers are a common site, but do take care to practice leave no trace. When I visited, there were plenty of people being disrespectful of other users (see: playing music, dropping beer cans, etc.). One would hope that the lake will remain in pristine conditions for future generations of hikers.&lt;/p&gt;
 &lt;p&gt;In short: maybe save this one for the fall. And, bring a trash bag to clean up what others may have left behind.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Mailbox Peak</title>
+      <link>http://s-kganz.github.io/hiking/mailbox/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://s-kganz.github.io/hiking/mailbox/</guid>
+      <description>&lt;p&gt;&lt;em&gt;08/24/2020&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;The fact that anyone still hikes the god-forsaken thing that is the old Mailbox Peak trail is absolutely baffling to me. Let me give you some numbers. The nearby Mt. Si trail is a reasonably strenuous training hike. Over a four-mile route, that trail ascends some 3,150 feet. For those keeping score, that’s an average grade of 18.5%, or a little less than 1 foot of elevation gain for every 5 feet traversed. The old Mailbox Peak trail packs a heavier punch at 4,000 feet of ascension. But, here’s the kicker, it does so in only 2.7 miles. Grade: 28.0%.&lt;/p&gt;
+&lt;p&gt;To my knowledge, this is the only day-hike on the I-90 corridor that was rebuilt not because of storm damage or forest management, but because people kept getting hurt on the darn thing. Today, the far more reasonable route tackles the elevation gain over 10 miles. However, the old path occasionally cuts across the present trail as a stark reminder of Mailbox’s gluttony for punishment.&lt;/p&gt;
+&lt;p&gt;Despite its hobbling, Mailbox packs a punch worthy of the early drive to secure a parking spot. There are only a few flat sections to give brief respite from the constant plodding uphill. Don’t reserve water breaks for “the next switchback”; they can be spaced out as far as a mile. And, don’t mistake a break in the trees for victory. Upon rising out of the tree line to a field of talus, you’ll be met with arguably the most difficult section that climbs 700 feet over a half mile. If you took the new trail, this is what you were missing from the old.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mailbox/valley.jpg&#34; alt=&#34;North Bend &amp;#43; a quarry from near the summit.&#34; width=&#34;3977&#34; height=&#34;1835&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;North Bend &amp;#43; a quarry from near the summit.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;While trying to ignore the lactic acid in your legs, take a moment to recognize the fantastic trail work that went into building stairs through the rocky section out of individual boulders. We’re lucky to have the WTA and its volunteers; my ankles would like to personally thank them.&lt;/p&gt;
+&lt;p&gt;Following the rocks and a short scamper up a thinly-vegetated stretch, we come to the pièce de résistance: the mailboxes on top of Mailbox. Yes, you read right, there are now two of the things up there. In addition to the true mailbox, with its commemorative plaque and fine crust of graffiti, is a wimpy appendix on the eastern side of the summit. Don’t miss the DNR datum from 1983 a few steps away from the main attraction.
+Many have written about the wide array of items one can find stashed in the mailbox. Some highlights from my visit include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Biden campaign mail&lt;/li&gt;
+&lt;li&gt;A full bottle of Fireball whiskey&lt;/li&gt;
+&lt;li&gt;A cool pen&lt;/li&gt;
+&lt;li&gt;Mysterious Amazon Prime packages&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mailbox/other_mailbox.jpg&#34; alt=&#34;The other mailbox&#34; width=&#34;2996&#34; height=&#34;2435&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;The other mailbox&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The Fantasy Costco vibe wears off pretty quickly when you realize that most of the stuff people leave in the mailbox is pretty much a step or two above trash. The WTA claims that there is a summit registry, but I didn’t see the wisdom in digging around a cursed public receptacle during a pandemic for the sake of bravado.&lt;/p&gt;
+&lt;figure class=&#34;image &#34;&gt;
+&lt;img src=&#34;http://s-kganz.github.io/images/hiking/mailbox/true_mailbox.jpg&#34; alt=&#34;The OG&#34; width=&#34;2419&#34; height=&#34;1814&#34;&gt;
+&lt;figcaption&gt;
+&lt;p&gt;The OG&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;On the way back down, I couldn’t help but feel a little underwhelmed by the reality of the legend. Perhaps the new trail takes away from Mailbox’s identity, demoting it to 1.5x Mt. Si a few exits past North Bend. Can one really call Mailbox an adventure if there’s a bus stop and a ready-made rock staircase just below its summit? At the very least, more can share in the joy of some of the finest views in the Snoqualmie valley. And, maybe the legend truly lives in the hearts of the hikers who keep coming back for more.&lt;/p&gt;
 </description>
     </item>
     

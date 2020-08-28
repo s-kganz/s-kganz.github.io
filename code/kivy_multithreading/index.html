@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html class="nojs" lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Multithreading in Kivy – Keenan Ganz</title>
+<meta name="description" content="I spend a fair amount of time thinking about UIs in kivy for a side project. An issue that one runs into pretty quickly is blocking code preventing the UI from being …">
+<meta name="created" content="2020-08-15T21:07:34-0700">
+<meta name="modified" content="2020-08-15T21:07:34-0700">
+
+
+<meta property="og:site_name" content="Keenan Ganz">
+<meta property="og:title" content="Multithreading in Kivy">
+<meta property="og:url" content="http://s-kganz.github.io/code/kivy_multithreading/">
+<meta property="og:type" content="article">
+
+<meta name="generator" content="Hugo 0.74.3" />
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="theme-color" content="#ffffff">
+
+
+<link rel="canonical" href="http://s-kganz.github.io/code/kivy_multithreading/">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="stylesheet" href="/css/styles.07de9722ae74190da91740ecb1e12bbfa31de324e29ab4972bdcc4131519528c.css">
+<link rel="stylesheet" href="/css/print.27fc184f8670f41a2690985390779e7b20335a8fadff8fa015cf9417ffe50c36.css" media="print">
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "headline": "Multithreading in Kivy",
+    "datePublished": "2020-08-15T21:07:34-07:00",
+    "dateModified": "2020-08-15T21:07:34-07:00",
+    "url" : "http://s-kganz.github.io/code/kivy_multithreading/",
+    "description": "I spend a fair amount of time thinking about UIs in kivy for a side project. An issue that one runs into pretty quickly is blocking code preventing the UI from being …",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "http://s-kganz.github.io/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Keenan Ganz",
+      "url": "http://s-kganz.github.io/"
+    }
+  }
+</script>
+
+<script defer src="/js/lib/umbrella.min.b426107371d121c9a56a27aac9e9058ff592a021e2f4c3c94827fe70920d3cbb.js"></script>
+<script defer src="/js/script.min.8e4d91ebe0d9226621e408b7205bd7b009e4935608e4b29c4275116490cc836d.js"></script>
+
+
+</head>
+
+<body class="single-page">
+<div class="page layout__page layout__sidebar-second">
+<header class="header layout__header">
+
+<h1 class="header__site-name">
+<a href="/" title="Home" class="header__site-link" rel="home"><span>Keenan Ganz</span></a>
+</h1>
+<div class="region header__region">
+</div>
+</header>
+
+<nav class="main-menu layout__navigation">
+<h2 class="visually-hidden">Main menu</h2>
+<ul class="navbar">
+<li><a href="/">Home</a></li>
+<li><a href="/code/" class="active" aria-current="page">Code</a></li>
+<li><a href="/science/">Science</a></li>
+<li><a href="/hiking/">Hiking Log</a></li>
+</ul>
+</nav>
+
+
+<main class="main layout__main">
+<article class="section-code single-view">
+<header>
+<h1 class="title ">Multithreading in Kivy</h1>
+</header>
+<div class="content">
+<p>I spend a fair amount of time thinking about UIs in kivy for a <a href="https://github.com/s-kganz/PySpecUI">side project</a>. An issue that one runs into pretty quickly is blocking code preventing the UI from being responsive. This is especially true when using some of the compute-intensive aspects of the scientific python ecosystem (e.g. pretty much everything in <code>scipy.optimize</code>). Unfortunately, there isn&rsquo;t a ton of documentation on the internet from other people who have found solutions to this problem. But, getting a basic multithreaded application working is definitely in the scope of a single blog post. Concurrent programming carries its own set of need-to-know considerations, so I encourage you to read the links in this post. Even if they don&rsquo;t provide copy-pasteable snippets for what you need, they are highly cogent discussions on writing good concurrent code.</p>
+<h2 id="flavors-of-concurrency-in-python">Flavors of Concurrency in Python</h2>
+<p>Before we can get into the weeds of this problem, it&rsquo;s worth taking a moment to discuss what we mean by concurrency. There&rsquo;s no need (and in fact, quite a few benefits) to write a great deal of structure that you don&rsquo;t actually need.</p>
+<p>Standard programs execute <em>sequentially</em>. That is, the individual instructions represented by your code are executed one after the other as directed by control flow (<code>if</code>, <code>for</code>, etc.). For a UI program, the disadvantage of sequential execution is that the program will not be responsive while intensive code executes in the background (aka <em>blocking</em>). <em>Concurrent</em> programs can execute multiple tasks at the same time by leveraging multiple threads i.e. multithreading (for a hardware-level discussion, see: <a href="https://en.wikipedia.org/wiki/Simultaneous_multithreading">SMT</a>). It is additionally worth noting that <em>asynchronous</em> programs, whose order of execution depends on an internal scheduling system (usually an event loop), can possibly use multiple threads.</p>
+<p>Now, narrowing to python, you have definitely written sequential code already. Lets first consider asynchronous code, which fortunately in python isn&rsquo;t too verbose thanks to the <code>asyncio</code> library. For example, consider this snippet adapted from this <a href="https://snarky.ca/how-the-heck-does-async-await-work-in-python-3-5/">fantastic blog post by Brett Cannon</a>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">import</span> asyncio
+<span style="color:#f92672">from</span> datetime <span style="color:#f92672">import</span> datetime
+
+<span style="color:#a6e22e">@asyncio.coroutine</span>
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">countdown</span>(task_name, n):
+    <span style="color:#66d9ef">while</span> n <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>:
+        <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Number: {} (Task {})&#39;</span><span style="color:#f92672">.</span>format(n, task_name))
+        <span style="color:#66d9ef">yield</span> <span style="color:#f92672">from</span> asyncio.sleep(<span style="color:#ae81ff">1</span>)
+        n <span style="color:#f92672">-=</span> <span style="color:#ae81ff">1</span>
+
+
+<span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;__main__&#39;</span>:
+    start <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    loop <span style="color:#f92672">=</span> asyncio<span style="color:#f92672">.</span>get_event_loop()
+    tasks <span style="color:#f92672">=</span> [
+        asyncio<span style="color:#f92672">.</span>ensure_future(countdown(<span style="color:#e6db74">&#39;A&#39;</span>, <span style="color:#ae81ff">3</span>)),
+        asyncio<span style="color:#f92672">.</span>ensure_future(countdown(<span style="color:#e6db74">&#39;B&#39;</span>, <span style="color:#ae81ff">6</span>))
+    ]
+    loop<span style="color:#f92672">.</span>run_until_complete(asyncio<span style="color:#f92672">.</span>wait(tasks))
+    loop<span style="color:#f92672">.</span>close()
+    end <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Execution finished in {:.2f} seconds&#39;</span><span style="color:#f92672">.</span>format((end <span style="color:#f92672">-</span> start)<span style="color:#f92672">.</span>seconds))
+</code></pre></div><p>There&rsquo;s a lot of constructs in this script that you may not have seen before. Instead of digging into what&rsquo;s going on, let&rsquo;s start by considering if this code truly won&rsquo;t block. The output we get from this seems like what we want:</p>
+<pre><code>Number: 3 (Thread A)
+Number: 6 (Thread B)
+Number: 2 (Thread A)
+Number: 5 (Thread B)
+Number: 1 (Thread A)
+Number: 4 (Thread B)
+Number: 3 (Thread B)
+Number: 2 (Thread B)
+Number: 1 (Thread B)
+Execution finished in 6.00 seconds
+</code></pre><p>Ok, cool. We have two tasks that are submitted to an event loop and execute essentially at the same time. However, in order for <code>asyncio</code> to truly be concurrent, your code <strong>must</strong> use the <code>async def/await/yield</code> statements, otherwise it will block. This is not doable if your blocking functions were not written to be asynchronous, which is the case for the vast majority of outside packages. Let&rsquo;s modify the example somewhat to see what this means:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">import</span> asyncio
+<span style="color:#f92672">from</span> datetime <span style="color:#f92672">import</span> datetime
+<span style="color:#f92672">import</span> time
+
+<span style="color:#a6e22e">@asyncio.coroutine</span>
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">countdown</span>(task_name, n):
+    <span style="color:#66d9ef">while</span> n <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>:
+        <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Number: {} (Task {})&#39;</span><span style="color:#f92672">.</span>format(n, task_name))
+        time<span style="color:#f92672">.</span>sleep(<span style="color:#ae81ff">1</span>) <span style="color:#75715e"># Or any other intense computation</span>
+        n <span style="color:#f92672">-=</span> <span style="color:#ae81ff">1</span>
+
+<span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;__main__&#39;</span>:
+    start <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    loop <span style="color:#f92672">=</span> asyncio<span style="color:#f92672">.</span>get_event_loop()
+    tasks <span style="color:#f92672">=</span> [
+        asyncio<span style="color:#f92672">.</span>ensure_future(countdown(<span style="color:#e6db74">&#39;A&#39;</span>, <span style="color:#ae81ff">3</span>)),
+        asyncio<span style="color:#f92672">.</span>ensure_future(countdown(<span style="color:#e6db74">&#39;B&#39;</span>, <span style="color:#ae81ff">6</span>))
+    ]
+    loop<span style="color:#f92672">.</span>run_until_complete(asyncio<span style="color:#f92672">.</span>wait(tasks))
+    loop<span style="color:#f92672">.</span>close()
+    end <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Execution finished in {:.2f} seconds&#39;</span><span style="color:#f92672">.</span>format((end <span style="color:#f92672">-</span> start)<span style="color:#f92672">.</span>seconds))
+</code></pre></div><p>Now, the individual tasks block.</p>
+<pre><code>Number: 3 (Task A)
+Number: 2 (Task A)
+Number: 1 (Task A)
+Number: 6 (Task B)
+Number: 5 (Task B)
+Number: 4 (Task B)
+Number: 3 (Task B)
+Number: 2 (Task B)
+Number: 1 (Task B)
+Execution finished in 9.00 seconds
+</code></pre><p>This is not surprising, though. The point of <code>yield</code> is to pass control of the main thread to different scopes in the program. As Brett mentions in the above post, this functionality originated from generators. In that context, <code>yield</code> can be better understood as pausing execution until the event loop returns control. There is a potential workaround if your blocking code can be broken up into meaningful chunks, with each segment delineated by a <code>yield</code> statement.</p>
+<p>However, this is unsatisfactory if you&rsquo;re using non-asynchronous code that cannot be modified for some reason (and, there are many). So, how can we write truly concurrent code that will not block for functions that were not designed to be asynchronous?</p>
+<h2 id="a-multithreaded-example">A Multithreaded Example</h2>
+<p>Python provides a <code>concurrent</code> package with convenient high-level interfaces that make it somewhat more convenient than the lower-level <code>threading</code> package. The class we are interested in is <code>concurrent.futures.ThreadPoolExecutor</code>. Quoting from the docs, this class &ldquo;uses a pool of at most <code>max_workers</code> threads to execute calls asynchronously&rdquo;. This means that we can sidestep the expense of starting/stopping threads dynamically; the <code>ThreadPoolExecutor</code> handles all that for us. Let&rsquo;s run an example with our blocking countdown from before:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> concurrent.futures <span style="color:#f92672">import</span> ThreadPoolExecutor
+<span style="color:#f92672">from</span> datetime <span style="color:#f92672">import</span> datetime
+<span style="color:#f92672">import</span> time
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">countdown</span>(task_name, n):
+    <span style="color:#66d9ef">while</span> n <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>:
+        time<span style="color:#f92672">.</span>sleep(<span style="color:#ae81ff">1</span>) <span style="color:#75715e"># Or any other intense computation</span>
+        n <span style="color:#f92672">-=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Task {} finished&#39;</span><span style="color:#f92672">.</span>format(task_name))
+
+<span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;__main__&#39;</span>:
+    start <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    executor <span style="color:#f92672">=</span> ThreadPoolExecutor(max_workers<span style="color:#f92672">=</span><span style="color:#ae81ff">4</span>)
+    futures <span style="color:#f92672">=</span> []
+    <span style="color:#66d9ef">for</span> letter <span style="color:#f92672">in</span> <span style="color:#e6db74">&#39;ABCDEFGHIJKL&#39;</span>:
+        futures<span style="color:#f92672">.</span>append(executor<span style="color:#f92672">.</span>submit(countdown, letter, <span style="color:#ae81ff">3</span>))
+        
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">not</span> all(future<span style="color:#f92672">.</span>done() <span style="color:#66d9ef">for</span> future <span style="color:#f92672">in</span> futures):
+        time<span style="color:#f92672">.</span>sleep(<span style="color:#ae81ff">1</span>)
+
+    end <span style="color:#f92672">=</span> datetime<span style="color:#f92672">.</span>now()
+    <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#39;Execution finished in {:.2f} seconds&#39;</span><span style="color:#f92672">.</span>format((end <span style="color:#f92672">-</span> start)<span style="color:#f92672">.</span>seconds))
+</code></pre></div><p>The output you get should look like this:</p>
+<pre><code>Task A finished
+Task B finished
+Task C finished
+Task D finished
+Task E finished
+Task H finished
+Task F finished
+Task G finished
+Task I finished
+Task J finished
+Task K finished
+Task L finished
+Execution finished in 10.00 seconds
+</code></pre><p>Now this is the result that we are after. If each of these tasks executed sequentially, it would take <code>12 * 3 = 36</code> seconds. But, since the <code>ThreadPoolExecutor</code> divides the work among four different threads, execution only takes 10 seconds.</p>
+<p>Let&rsquo;s break this down a little bit. First, we instantiate an executor that can use at max 4 workers. This means that at most, 4 function calls can be run by the executor before tasks will have to idle before being executed. Second, the main thread can retain access to data produced by a call to the executor via <code>Future</code> objects returned by <code>ThreadPoolExecutor.submit</code>. It is worth considering the interface of the <code>Future</code> object <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future">in the docs</a>. In particular, remember that we can get return values from <code>Future</code>s, check if the task is running, cancel tasks, and so on. Also, it is very important to remember that if a task raises an exception, <em>the exception will not bubble up the call stack unless you explicitly check for one with</em> <code>Future.exception</code> and raise it. Last, although <code>ThreadPoolExecutor</code> does offer a significant degree of separation between the main thread and the blocking code, see what happens if you uncomment the <code>while</code> loop and run the script again. The print statement showing end of execution will immediately fire, but the script will not terminate until all tasks are finished.</p>
+<h2 id="the-goal">The Goal</h2>
+<p>Let&rsquo;s build a really simple kivy application that utilizes multithreading to show prime and palindromic numbers in the UI without blocking user input. A key consideration to keep in mind here is that kivy absolutely requires that all operations on UI objects happen in the main thread. If you modify widget properties from another thread, beware and be absolutely sure you know what you are doing.</p>
+<h2 id="first-steps">First Steps</h2>
+<p>These are some functions we will use for our blocking code. Yes, these are poor implementations. But, since slow code is kind of why we are here, it works for this example.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">is_prime</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Checks if a number is prime.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">2</span>, n):
+        <span style="color:#66d9ef">if</span> n <span style="color:#f92672">%</span> i <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>: <span style="color:#66d9ef">return</span> False
+    <span style="color:#66d9ef">return</span> True
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_next_prime</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Returns the next prime number larger than n.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">not</span> is_prime(n): n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">return</span> n
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_next_palindrome</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Returns the next palindromic number larger than n.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">not</span> str(n) <span style="color:#f92672">==</span> str(n)[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]: n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">return</span> n
+</code></pre></div><p>And, this is the kv file.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#75715e">#: kivy 1.11.1</span>
+
+<span style="color:#66d9ef">&lt;MainLayout@BoxLayout&gt;</span>:
+    <span style="color:#66d9ef">palindrome_label</span>: palindrome_label
+    <span style="color:#66d9ef">prime_label</span>: prime_label
+    <span style="color:#66d9ef">prime</span>: <span style="color:#ae81ff">100000000</span>
+    <span style="color:#66d9ef">palindrome</span>: <span style="color:#ae81ff">10000001</span>
+    <span style="color:#66d9ef">orientation</span>: <span style="color:#e6db74">&#39;vertical&#39;</span>
+    <span style="color:#66d9ef">BoxLayout</span>:
+        <span style="color:#66d9ef">orientation</span>: <span style="color:#e6db74">&#39;horizontal&#39;</span>
+        <span style="color:#66d9ef">Label</span>:
+            <span style="color:#66d9ef">id</span>: palindrome_label
+            <span style="color:#66d9ef">text</span>: <span style="color:#e6db74">&#39;The current palindrome is {}&#39;</span>.format(root.palindrome)
+        <span style="color:#66d9ef">Label</span>:
+            <span style="color:#66d9ef">id</span>: prime_label
+            <span style="color:#66d9ef">text</span>: <span style="color:#e6db74">&#39;The current prime is {}&#39;</span>.format(root.prime)
+    <span style="color:#66d9ef">BoxLayout</span>:
+        <span style="color:#66d9ef">orientation</span>: <span style="color:#e6db74">&#39;horizontal&#39;</span>
+        <span style="color:#66d9ef">Button</span>:
+            <span style="color:#66d9ef">text</span>: <span style="color:#e6db74">&#39;Get next palindrome&#39;</span>
+            <span style="color:#66d9ef">on_press</span>: app.update_palindrome()
+        <span style="color:#66d9ef">Button</span>:
+            <span style="color:#66d9ef">text</span>: <span style="color:#e6db74">&#39;Get next prime&#39;</span>
+            <span style="color:#66d9ef">on_press</span>: app.update_prime()
+</code></pre></div><p>Finally, the rest of the implementation in the same script as the blocking code.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> concurrent.futures <span style="color:#f92672">import</span> ThreadPoolExecutor
+<span style="color:#f92672">import</span> kivy
+<span style="color:#f92672">from</span> kivy.app <span style="color:#f92672">import</span> App
+<span style="color:#f92672">from</span> kivy.properties <span style="color:#f92672">import</span> ObjectProperty, NumericProperty
+<span style="color:#f92672">from</span> kivy.uix.boxlayout <span style="color:#f92672">import</span> BoxLayout
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">is_prime</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Checks if a number is prime.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">2</span>, n):
+        <span style="color:#66d9ef">if</span> n <span style="color:#f92672">%</span> i <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>: <span style="color:#66d9ef">return</span> False
+    <span style="color:#66d9ef">return</span> True
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_next_prime</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Returns the next prime number larger than n.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">not</span> is_prime(n): n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">return</span> n
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_next_palindrome</span>(n):
+    <span style="color:#e6db74">&#39;&#39;&#39;
+</span><span style="color:#e6db74">    Returns the next palindromic number larger than n.
+</span><span style="color:#e6db74">    &#39;&#39;&#39;</span>
+    n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">not</span> str(n) <span style="color:#f92672">==</span> str(n)[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]: n <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+    <span style="color:#66d9ef">return</span> n
+
+<span style="color:#66d9ef">class</span> <span style="color:#a6e22e">MainLayout</span>(BoxLayout):
+    palindrome_label <span style="color:#f92672">=</span> ObjectProperty(None)
+    prime_label <span style="color:#f92672">=</span> ObjectProperty(None)
+    palindrome <span style="color:#f92672">=</span> NumericProperty(<span style="color:#ae81ff">1</span>)
+    prime <span style="color:#f92672">=</span> NumericProperty(<span style="color:#ae81ff">1</span>)
+
+<span style="color:#66d9ef">class</span> <span style="color:#a6e22e">AsyncApp</span>(App):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">build</span>(self):
+        self<span style="color:#f92672">.</span>layout <span style="color:#f92672">=</span> MainLayout()
+        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>layout
+    
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">update_palindrome</span>(self):
+        current <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>palindrome
+        self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>palindrome <span style="color:#f92672">=</span> get_next_palindrome(current)
+    
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">update_prime</span>(self):
+        current <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>prime
+        self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>prime <span style="color:#f92672">=</span> get_next_prime(current)
+
+<span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;__main__&#39;</span>:
+    AsyncApp()<span style="color:#f92672">.</span>run()
+</code></pre></div><p><em>Sidebar: There&rsquo;s a lot of code here and we are going to be adding to it, so here&rsquo;s a link to the <a href="https://gist.github.com/s-kganz/f7376cc683185d3ec5f704bf133d00c3">blocking</a> and <a href="https://gist.github.com/s-kganz/1ed59e07b4010dc661d7de763a733ea9">non-blocking</a> versions of the app to save you some copy-pasting.</em></p>
+<p>Running the main file, you should see something that looks like this:</p>
+<figure class="image ">
+<img src="/images/kivy_multithreading/app.png" alt="UI" width="882" height="664">
+<figcaption>
+<p>A stunningly beautiful design.</p>
+</figcaption>
+</figure>
+
+<p>Getting the next palindrome executes essentially instantly. But, getting the next prime hangs for a couple of seconds. As a result, the splitter and buttons remain unresponsive. To solve this problem, we can use a <code>ThreadPoolExecutor</code> to encapsulate getting the next number in its own thread when a button is clicked. But first, does calculating the next palindrome really require its own thread? To be honest, when I started writing this I thought it would. However, it has no issue keeping up with our button presses. So, we can keep things simpler and only worry about multithreading the logic for prime numbers.</p>
+<h2 id="more-threads">More Threads!</h2>
+<p>Adding multithreading to the application is not particularly difficult, but it is critical to have pseudocode for multithreaded functions well thought-out before implementing them since <a href="https://bholley.net/blog/2015/must-be-this-tall-to-write-multi-threaded-code.html">debugging multithreaded code is&hellip; hard</a>.</p>
+<p>Here&rsquo;s the plan:</p>
+<ul>
+<li>
+<p>On prime button press, check if thread for prime numbers is running.</p>
+<ul>
+<li>If Yes, return (i.e. don&rsquo;t calculate another one)</li>
+<li>If No, start a new thread that calls <code>get_next_prime</code></li>
+</ul>
+</li>
+<li>
+<p>When a thread starts:</p>
+<ul>
+<li>Instantiate a future object to retain access to the thread</li>
+<li>Schedule the clock to repeatedly check the thread&rsquo;s status</li>
+</ul>
+</li>
+<li>
+<p>When checking thread status:</p>
+<ul>
+<li>Check if the thread is still running:
+<ul>
+<li>If Yes:
+<ul>
+<li>Return, check back next time</li>
+</ul>
+</li>
+<li>If No:
+<ul>
+<li>Check if the thread threw an exception:
+<ul>
+<li>If Yes, raise it</li>
+</ul>
+</li>
+<li>Get the return value from the thread, update the UI</li>
+<li>Unschedule status check from the clock</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>There&rsquo;s a lot of moving parts here, but individually they aren&rsquo;t too tough. A good analogy is ordering a package. When the user wants to get the next prime, we place an order for it in another thread. Every day or so, we look outside to see if the package arrived. If the delivery failed, raise the error. Once the package arrives, send it to the user and then stop checking for the package every day.</p>
+<p>Now, let&rsquo;s implement this. Let&rsquo;s start by instantiating an executor in the application&rsquo;s <code>__init__</code>. Since we only want one prime to be calculated at a time, we only want one worker. Also, let&rsquo;s add an attribute to hold onto the thread&rsquo;s result.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">AsyncApp</span>(App):
+    <span style="color:#66d9ef">def</span> __init__(self, <span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs):
+        super()<span style="color:#f92672">.</span>__init__(<span style="color:#f92672">*</span>args, <span style="color:#f92672">**</span>kwargs)
+        self<span style="color:#f92672">.</span>_executor <span style="color:#f92672">=</span> ThreadPoolExecutor(max_workers<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>)
+        self<span style="color:#f92672">.</span>_future <span style="color:#f92672">=</span> None
+        self<span style="color:#f92672">.</span>_clock_event <span style="color:#f92672">=</span> None
+</code></pre></div><p>Next, we can update <code>AsyncApp.update_prime</code> (how punny) to start a new thread for the calculation when the button is clicked.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">AsyncApp</span>(App):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">update_prime</span>(self):
+        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>_future <span style="color:#f92672">is</span> None <span style="color:#f92672">or</span> self<span style="color:#f92672">.</span>_future<span style="color:#f92672">.</span>done():
+            <span style="color:#66d9ef">print</span>(<span style="color:#e6db74">&#34;Starting a new thread, current prime is {}&#34;</span><span style="color:#f92672">.</span>format(self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>prime))
+            self<span style="color:#f92672">.</span>_future <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_executor<span style="color:#f92672">.</span>submit(get_next_prime, self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>prime)
+        
+            self<span style="color:#f92672">.</span>_clock_event <span style="color:#f92672">=</span> Clock<span style="color:#f92672">.</span>schedule_interval(self<span style="color:#f92672">.</span>check_thread_status, <span style="color:#ae81ff">0.1</span>)
+</code></pre></div><p>If you haven&rsquo;t seen the kivy <code>Clock</code> before, the above call to <code>schedule_interval</code> tells kivy&rsquo;s internal event loop to call <code>check_thread_status</code> every 0.1 seconds.</p>
+<p>Finally, we create <code>check_thread_status</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">AsyncApp</span>(App):
+    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">check_thread_status</span>(self, <span style="color:#f92672">*</span>args):
+        <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>_future<span style="color:#f92672">.</span>done():
+            <span style="color:#66d9ef">return</span>
+        <span style="color:#66d9ef">else</span>:
+            maybe_e <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_future<span style="color:#f92672">.</span>exception()
+            <span style="color:#66d9ef">if</span> maybe_e <span style="color:#f92672">is</span> <span style="color:#f92672">not</span> None: 
+                <span style="color:#66d9ef">raise</span> maybe_e
+            <span style="color:#66d9ef">else</span>:
+                next_prime <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_future<span style="color:#f92672">.</span>result()
+                self<span style="color:#f92672">.</span>layout<span style="color:#f92672">.</span>prime <span style="color:#f92672">=</span> next_prime
+                Clock<span style="color:#f92672">.</span>unschedule(self<span style="color:#f92672">.</span>_clock_event)
+</code></pre></div><p>Run the app and&hellip; mostly success. The splitter and palindrome buttons remain responsive while the next prime is calculated, but they lag pretty hard. I think that this speaks to just how much brute-forcing primes sucks. With other modules, the application doesn&rsquo;t struggle nearly as much.</p>
+<p>But still! In this way we can build a GUI that can do heavy computations without losing interactivity.</p>
+<h2 id="extensions">Extensions</h2>
+<p>This application is a fairly simple use case of multithreading. If your application needs to handle several threads at once, posting data to the main thread at irregular intervals, using a <code>queue</code> object to hold the <code>Future</code>s is a good solution since python&rsquo;s implementation of queues is threadsafe.</p>
+<p>With that, happy coding!</p>
+
+
+</div>
+</article>
+</main>
+
+
+<footer class="footer layout__footer">
+<p><span>© Keenan Ganz</span></p>
+
+
+</footer>
+
+</div>
+</body>
+</html>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
