@@ -309,4 +309,4 @@ $grad
 [1] 2
 {% endhighlight %}
 
-Note that this approach to calculating terrain metrics may differ from that in your favorite GIS software. Another popular technique is given in [Horn (1981)](doi.org/10.1109/PROC.1981.11918), and is currently in use in the R `raster` package.
+Note that this approach to calculating terrain metrics may differ from that in your favorite GIS software. Another popular technique is given in [Horn (1981)](https://ieeexplore.ieee.org/document/1456186), and is currently in use in the R `raster` package.
