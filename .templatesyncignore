@@ -1,1 +1,22 @@
+# We want to ignore everything that changes website content, but keep
+# changes to website setup.
+
 .github/
+.agents/
+.claude/
+.codex/
+.gemini/
+.gitignore/
+AGENTS.md
+CLAUDE.md
+README.md
+_bibliography/
+_config.yml
+_data/
+_pages/
+_posts/
+_projects/
+_teachings/
+assets/
+docs/
+test/
